@@ -12,7 +12,7 @@ jobs:
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Content-Type: application/json" \
-            -H "X-Hub-Signature: ${{ secrets.JIRA_WEBHOOK_SECRET }}" \
+            -H "X-Automation-Webhook-Token: ${{ secrets.JIRA_WEBHOOK_SECRET }}" \
             -d '{
               "action": "closed",
               "issue": {
