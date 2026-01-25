@@ -1,0 +1,23 @@
+name: Sync Jira on Issue Close
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  update-jira:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Jira Automation
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Atlassian-Token: ${{ secrets.JIRA_WEBHOOK_SECRET }}" \
+            -d '{
+              "action": "closed",
+              "issue": {
+                "number": "${{ github.event.issue.number }}",
+                "title": "${{ github.event.issue.title }}"
+              }
+            }' \
+            https://api-private.atlassian.com/automation/webhooks/jira/a/bf5dcae3-b9b7-45d6-9b6d-6610e7d738b7/019bf367-0cb9-79d6-8b70-99e10d05de26
