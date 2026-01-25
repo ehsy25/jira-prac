@@ -1,34 +1,36 @@
-name: Sync Jira on Issue Close
+name: Close Jira Ticket on Issue Close
 
 on:
   issues:
     types: [closed]
 
 jobs:
-  update-jira:
+  close-jira-ticket:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Jira Automation
+      - name: Extract Jira Issue Key
+        id: extract
         run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          TITLE="${{ github.event.issue.title }}"
+          # Extract JP-XX format from title
+          ISSUE_KEY=$(echo "$TITLE" | grep -oP 'JP-\d+' | head -1)
+          
+          if [ -z "$ISSUE_KEY" ]; then
+            echo "No Jira issue key found in title"
+            exit 0
+          fi
+          
+          echo "issue_key=$ISSUE_KEY" >> $GITHUB_OUTPUT
+          echo "Found Jira issue: $ISSUE_KEY"
+
+      - name: Trigger Jira Automation
+        if: steps.extract.outputs.issue_key != ''
+        run: |
+          curl -X POST \
             -H "Content-Type: application/json" \
             -H "X-Automation-Webhook-Token: ${{ secrets.JIRA_WEBHOOK_SECRET }}" \
             -d '{
               "action": "closed",
-              "issue": {
-                "number": "${{ github.event.issue.number }}",
-                "title": "${{ github.event.issue.title }}"
-              }
+              "issueKey": "${{ steps.extract.outputs.issue_key }}"
             }' \
-            https://api-private.atlassian.com/automation/webhooks/jira/a/bf5dcae3-b9b7-45d6-9b6d-6610e7d738b7/019bf367-0cb9-79d6-8b70-99e10d05de26)
-          
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response Body: $BODY"
-          
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
-            echo "Failed to trigger Jira automation"
-            exit 1
-          fi
+            ${{ secrets.JIRA_WEBHOOK_URL }}
